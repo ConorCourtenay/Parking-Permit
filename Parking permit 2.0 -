@@ -1,0 +1,252 @@
+using System;
+
+using System.Collections.Generic;
+using MySql.Data;
+using MySql.Data.MySqlClient;
+namespace Assignment6
+{
+    public class Vehicle
+    {   //sql connection
+        static MySqlConnection conn= new MySqlConnection(myconnect);
+        //connection String 
+        static String myconnect = "Server=mysql1.it.nuigalway.ie; Database=mydb2984; Uid=mydb2984cc; Pwd=wu6hij;  ";
+        static MySqlDataReader rdr = null;
+
+        //menu method has all options 
+        public static void menu(){
+            Console.WriteLine("------ Welcome to Parking Permits Galway ------");
+            Console.WriteLine("             ------ Options-----               ");
+            Console.WriteLine("Display All registered Vehicles  - press 1");
+            Console.WriteLine("Display your registered Vehicle  - press 2");
+            Console.WriteLine("Check Your parking permit status - press 3");
+            Console.WriteLine("Check permits in use             - press 4");
+            Console.WriteLine("Check unique cars on each permit - press 5");
+            Console.WriteLine("Exit                             - press 6");
+            Console.Write("\n Enter Option:");
+            int option = Convert.ToInt32(Console.ReadLine());
+
+            if(option==1){
+                GetVehicle(); 
+            }
+            if(option==2){
+                GetUniqueVehicle();
+            }
+            if(option==3){
+                Console.Write("\n Enter Student ID :");
+                String id = Console.ReadLine();
+                Unique(id); 
+            }
+            if(option==4){
+                GetPermits();
+            }
+            if(option==5){
+                uniqueCar();
+            }
+            if(option==6){
+                System.Environment.Exit(1);
+            }
+
+            menu();
+
+
+        }
+        //get vehicle method 
+        public static void GetVehicle(){
+
+            try
+            {
+
+                conn = new MySqlConnection(myconnect);
+
+                conn.Open();
+                //sql command to get all vehicles on database
+                MySqlCommand cmd = new MySqlCommand("select * from Vehicle", conn);
+
+               
+
+                rdr = cmd.ExecuteReader();
+                //output vehicles in data base
+                Console.WriteLine("Vehicles Registered with DataBase");
+                while (rdr.Read())
+                {
+                    //output from reader
+
+                    Console.WriteLine("\n StudentID:" + rdr[0] + "\n Model:" + rdr[1] + "\n Registration:" + rdr[2] +
+                                      "\n Owner:" + rdr[3] + "\n Apartment:" + rdr[4] + "\n Permit No. :" + rdr[5]);
+
+
+                }
+
+
+            }
+            finally
+            {
+                if (rdr != null)
+                {
+                    rdr.Close();
+                }
+
+                if (conn != null)
+                {
+                    conn.Close();
+                }
+
+            }
+            
+        }
+        public static void GetUniqueVehicle()
+        {
+
+            try
+            {
+                //get unique vehicle method
+                conn = new MySqlConnection(myconnect);
+
+                conn.Open();
+                Console.WriteLine("Enter Student ID:");
+                String id = Console.ReadLine(); 
+                MySqlCommand cmd = new MySqlCommand("select * from Vehicle WHERE StudentID="+id, conn);
+
+
+
+                rdr = cmd.ExecuteReader();
+                //output reader
+                Console.WriteLine("Vehicle-"+id);                
+                       while (rdr.Read())
+                {
+
+                    Console.WriteLine("\n StudentID:" + rdr[0] + "\n Model:" + rdr[1] + "\n Registration:" + rdr[2] +
+                                      "\n Owner:" + rdr[3] + "\n Apartment:" + rdr[4] + "\n Permit No. :" + rdr[5]);
+
+
+                }
+
+
+            }
+            finally
+            {
+                if (rdr != null)
+                {
+                    rdr.Close();
+                }
+
+                if (conn != null)
+                {
+                    conn.Close();
+                }
+
+            }
+
+        }
+        
+        public static void GetPermits()
+        {
+            //method to display all valid permits on the system
+           
+            conn = new MySqlConnection(myconnect);
+         
+            conn.Open();
+
+            MySqlCommand cmd = new MySqlCommand("SELECT COUNT(Permit.permitNo) As 'Valid permits in use' FROM Permit INNER JOIN Vehicle ON Permit.permitNo=Vehicle.permit WHERE Permit.Paid='yes' OR Permit.Paid='Yes'", conn);
+
+            rdr = cmd.ExecuteReader();
+
+            while (rdr.Read())
+            {
+                Console.WriteLine("\n There is currently "+ rdr[0]+" valid permit(s) on the system");
+            }
+
+
+            rdr.Close();
+            conn.Close();
+
+
+
+        }
+
+        public static void Unique(String id){
+            //method to check permit calid and pay for permit if invalid
+            conn = new MySqlConnection(myconnect);
+
+            conn.Open();
+             
+               
+            MySqlCommand cmd = new MySqlCommand("SELECT Permit.Paid FROM Permit INNER JOIN Vehicle ON Permit.permitNo=Vehicle.permit WHERE Vehicle.Student_ID="+id, conn);
+
+            rdr = cmd.ExecuteReader();
+
+
+
+            while(rdr.Read()){
+                //check if permit is valid
+                String p=(rdr[0].ToString());
+
+                Console.WriteLine("Is permit Valid? :"+ rdr[0]);
+
+                if(p=="No" || p=="no"){
+                    Console.Write("Do you wish to Pay fees? :");
+                    String answer = Console.ReadLine();
+
+                    if(answer=="Yes" || answer=="yes"){
+                        Console.WriteLine("The fee to renew parking permit is €100");
+                        Console.Write("Enter your permit number to confirm transaction: ");
+                        String permit = Console.ReadLine();
+                        //call update permit method if permit is invalid
+                        updatePermit(permit); 
+
+                        Console.WriteLine("thank your payment your permit is now valid for all vehicles"); 
+                    }else{
+                        Console.WriteLine("WARNING: Your permit is invalid if you park on the premises you will be clamped"); 
+                    }
+
+                }else{
+                    Console.WriteLine("Your permit is valid and in date, thank you");
+                }
+
+
+            }
+
+
+
+
+
+            rdr.Close();
+
+
+            conn.Close(); 
+
+        }
+
+        public static void updatePermit(String pno){
+
+            conn = new MySqlConnection(myconnect);
+
+            conn.Open();
+
+            //updates permit status to valid
+            MySqlCommand cmd = new MySqlCommand("UPDATE Permit SET valid='Yes', Paid='Yes' WHERE `permitNo`="+pno, conn);
+
+
+            cmd.ExecuteNonQuery();
+
+            GetPermits();
+        }
+
+        public static void uniqueCar(){
+            conn = new MySqlConnection(myconnect);
+
+            conn.Open();
+            //counts the number of unique cars on each permit 
+
+            MySqlCommand cmd = new MySqlCommand("SELECT `permit`, COUNT(permit) FROM `Vehicle` GROUP BY `permit`", conn);
+
+            rdr = cmd.ExecuteReader();
+
+            while(rdr.Read()){
+                Console.WriteLine("There is "+rdr[1]+ " unique car(s) on permit " +rdr[0] );
+            }
+
+        }
+
+    }
+}
